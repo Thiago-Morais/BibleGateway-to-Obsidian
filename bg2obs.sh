@@ -173,7 +173,9 @@ show_progress_bar()
 bible_folder="$bible_name ($ARG_VERSION)"
 
 # Initialise the main index file
-echo -e "# $bible_folder" > "$bible_name.md"
+
+mkdir -p "./$bible_folder"
+echo -e "# $bible_folder" > "./$bible_folder/$bible_name.md"
 
 if [[ $ARG_VERBOSE == "true" ]]; then
   echo -n "Starting download of $ARG_VERSION Bible."
@@ -191,7 +193,14 @@ for ((book_index=0; book_index<66; book_index++)); do
   fi
 
   # Add book to main index file
-  echo -en "\n* $book:" >> "$bible_name.md"
+  echo -en "\n* $book:" >> "./$bible_folder/$bible_name.md"
+
+  mkdir -p "./$bible_folder/$book/";
+
+  # Create an overview file for each book of the Bible:
+  overview_file="links: [[$bible_folder/$bible_name]]\n# $book\n\n[[$bible_folder/$book/$abbreviation 1|Start Reading →]]"
+  echo -e $overview_file > "$book.md"
+  mv "$book.md" "./$bible_folder/$book"
 
   # Loop through each chapter of this book
   for ((chapter=1; chapter<=last_chapter; chapter++)); do
@@ -206,7 +215,8 @@ for ((book_index=0; book_index<66; book_index++)); do
     next_file="$abbreviation $next_chapter"
 
     # Add this chapter to the main index file
-    echo -en " [[$this_file|$chapter]]" >> "$bible_name.md"
+    echo -en " [[$bible_folder/$book/$this_file|$chapter]]" >> "./$bible_folder/$bible_name.md"
+    echo -en " [[$bible_folder/$book/$this_file|$chapter]]" >> "./$bible_folder/$book/$book.md"
 
     # Set the appropriate flags for the 'bg2md_mod' script
     bg2md_flags="-c -f -l -r"
@@ -226,22 +236,22 @@ for ((book_index=0; book_index<66; book_index++)); do
 
     # Use original header/footer navigation if another method isn't specified
     if [[ $ARG_BC_INLINE == "false" && $ARG_BC_YAML == "false" ]]; then
-      navigation="[[$book]]"
+      navigation="[[$bible_folder/$book]]"
       if [[ $chapter -gt 1 ]]; then
-        navigation="[[$prev_file|← $book $prev_chapter]] | $navigation"
+        navigation="[[$bible_folder/$book/$prev_file|← $book $prev_chapter]] | $navigation"
       fi
       if [[ $chapter -lt $last_chapter ]]; then
-        navigation="$navigation | [[$next_file|$book $next_chapter →]]"
+        navigation="$navigation | [[$bible_folder/$book/$next_file|$book $next_chapter →]]"
       fi
 
     # Navigation with INLINE BREADCRUMBS ENABLED
     elif [[ $ARG_BC_INLINE == "true" ]] ; then
-      navigation="(up:: [[$book]])"
+      navigation="(up:: [[$bible_folder/$book]])"
       if [[ $chapter -gt 1 ]]; then
-        navigation="(previous:: [[$prev_file|← $book $prev_chapter]]) | $navigation"
+        navigation="(previous:: [[$bible_folder/$book/$prev_file|← $book $prev_chapter]]) | $navigation"
       fi
       if [[ $chapter -lt $last_chapter ]]; then
-        navigation="$navigation | (next:: [[$next_file|$book $next_chapter →]])"
+        navigation="$navigation | (next:: [[$bible_folder/$book/$next_file|$book $next_chapter →]])"
       fi
     fi
 
@@ -256,18 +266,18 @@ for ((book_index=0; book_index<66; book_index++)); do
     # Navigation with YAML breadcrumbs
     if [[ $ARG_BC_YAML == "true" ]]; then
       # create YAML breadcrumbs
-      bc_yaml="\nup: ['$book']"
+      bc_yaml="\nup: \"[[$bible_folder/$book]]\""
       if [[ $chapter -gt 1 ]]; then
-        bc_yaml="\nprevious: ['$prev_file']$bc_yaml"
+        bc_yaml="\nprevious: \"[[$bible_folder/$book/$prev_file]]\"$bc_yaml"
       fi
       if [[ $chapter -lt $last_chapter ]]; then
-        bc_yaml="$bc_yaml\nnext: ['$next_file']"
+        bc_yaml="$bc_yaml\nnext: \"[[$bible_folder/$book/$next_file]]\""
       fi
 
       # Compile YAML output
       yaml="---"
       if $ARG_ALIASES -eq "true"; then
-        yaml="$yaml\nAliases: [$book $chapter]"
+        yaml="$yaml\naliases:\n   - $book $chapter"
       fi
       if $ARG_BC_YAML -eq "true"; then
         yaml="$yaml$bc_yaml"
@@ -290,11 +300,6 @@ for ((book_index=0; book_index<66; book_index++)); do
     fi
 
   done # End of chapter loop
-
-  # Create an overview file for each book of the Bible:
-  overview_file="links: [[$bible_name]]\n# $book\n\n[[$abbreviation 1|Start Reading →]]"
-  echo -e $overview_file > "$book.md"
-  mv "$book.md" "./$bible_folder/$book"
 
 done # End of book loop
 
